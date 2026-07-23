@@ -1,3 +1,5 @@
 Hello World
 
 Testing VC Connection
+
+This application will be a recreation of KiwiGuesser built on modern tools
