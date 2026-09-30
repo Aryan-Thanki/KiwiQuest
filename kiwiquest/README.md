@@ -2,15 +2,18 @@
 
 **Explore. Pin. Score.** A New Zealand location-guessing game: a modern remake of the original KiwiGuesser project.
 
-Players are dropped into a mystery spot somewhere in Aotearoa, place a pin on the map where they think it is, and score points based on how close they get.
+Each game is three rounds. Every round names a famous New Zealand spot, the player pins it on the map, and they score points based on how close they get. The three round scores add up to a total, and the best total is kept as a high score.
 
 ## Features (current state)
 
 - **Landing page** (`/`) with a hero section, a CSS-drawn NZ landscape, and a "How to play" guide.
-- **Practice round** (`/game`) with an interactive map of New Zealand:
-  - Click anywhere on the map to drop your guess pin (click again to move it).
-  - Submit to reveal the real location, your distance from it, and your score.
-  - "Try again" resets the round.
+- **Three-round game** (`/game`) with an interactive map of New Zealand:
+  - A start screen shows your current high score.
+  - Each round picks a random location from a pool of 28 popular NZ spots (no repeats within a game).
+  - Click the map to drop your guess pin (click again to move it), then submit to reveal the real location, your distance from it, and your round score.
+  - A status bar shows the round number, your running total and your high score.
+  - After round 3, a summary lists each round and your total out of 15,000.
+  - **High score:** your best total is saved in the browser and replaced only when a finished game beats it.
 - Responsive layout that works on desktop and mobile.
 
 ## Getting started
@@ -64,7 +67,11 @@ kiwiquest/
 │   └── game/
 │       └── page.tsx      # Game page (/game): header + <GuessMap />
 ├── components/
-│   └── guess-map.tsx     # Client component: map, guessing, scoring
+│   └── guess-map.tsx     # Client component: game flow, map, scoring
+├── data/
+│   └── locations.ts      # The pool of NZ locations rounds are drawn from
+├── lib/
+│   └── high-score.ts     # High score persistence (localStorage)
 ├── public/               # Static assets (currently create-next-app defaults)
 ├── next.config.ts        # Pins Turbopack's root to this folder
 ├── eslint.config.mjs
@@ -80,30 +87,41 @@ kiwiquest/
 
 The app uses the Next.js **App Router**. `app/page.tsx` and `app/game/page.tsx` are server components that render static markup. The interactive part of the game lives in a single **client component**, `components/guess-map.tsx` (marked `"use client"`), because the map needs the browser.
 
-### A round
+### A game
 
-All round state is local React state inside `GuessMap`:
+All game state is local React state inside `GuessMap`:
 
+- `rounds`: the three locations for this game, or `null` before the game starts.
+- `roundIndex`: which round is being played (0–2).
 - `guess`: the latitude/longitude the player clicked, or `null`.
-- `submitted`: whether the guess has been locked in.
+- `results`: one `{ location, distance, score }` entry per submitted round. A round counts as submitted once it has an entry here.
+- `finalScore` / `showSummary`: the game total and the previous high score, and whether the summary screen is showing.
 
-1. The map opens centred on New Zealand (zoom 4.7, limited to zoom 4–8, with no repeated world copies).
-2. Clicking the map sets `guess` and shows a red pin. Clicks are ignored once the guess is submitted.
-3. The **Submit guess** button is disabled until a pin is placed. Submitting shows the green answer pin and a results bar with the answer's name, the distance and the score.
-4. **Try again** clears both pieces of state.
+1. **Start game** shuffles the location pool (Fisher–Yates) and takes the first three, so each game gets three different places.
+2. Each round shows the place name. The map opens centred on New Zealand (zoom 4.7, limited to zoom 4–8, with no repeated world copies) and resets to that view every round.
+3. Clicking the map sets `guess` and shows a red pin. The **Submit guess** button is disabled until a pin is placed. Submitting shows the green answer pin and a results bar with the answer, the distance and the round score.
+4. **Next round** moves on. After round 3, **See final score** shows the summary, and **Play again** starts a fresh game with three new random locations.
 
-The answer is currently hardcoded as **Lindis Pass, Otago** (−44.696, 169.136).
+### Locations
+
+`data/locations.ts` exports the pool as an array of `{ name, region, latitude, longitude }`, from Cape Reinga in the far north to Stewart Island / Rakiura in the south. To add a location, append an entry. The game always draws 3 from whatever is in the list.
+
+### High score
+
+`lib/high-score.ts` stores the best total in `localStorage` under the key `kiwiquest:high-score`, so it is per browser and survives reloads. The component reads it with React's `useSyncExternalStore`. That returns 0 during server rendering, which avoids a hydration mismatch, and updates the display when the score changes, including from another tab.
+
+The high score is checked the moment the third guess is submitted, so it is saved even if the player leaves before opening the summary. It is only replaced when the new total is strictly higher. If storage is unavailable (for example, blocked site data), the game still works but the high score won't persist.
 
 ### Distance and scoring
 
 - **Distance** is the great-circle distance between the guess and the answer, calculated with the [haversine formula](https://en.wikipedia.org/wiki/Haversine_formula) (Earth radius 6,371 km) and rounded to the nearest kilometre.
-- **Score** decays exponentially with distance:
+- **Score** for each round decays exponentially with distance:
 
   ```
   score = round(5000 × e^(−distance_km / 450))
   ```
 
-  A perfect guess scores **5,000**. A guess 450 km away scores about **1,839**, and the score approaches 0 for guesses on the far side of the country.
+  A perfect guess scores **5,000**. A guess 450 km away scores about **1,839**, and the score approaches 0 for guesses on the far side of the country. A game's total is the sum of its three round scores (maximum **15,000**).
 
 ### Map
 
@@ -132,10 +150,10 @@ A single breakpoint at **800px** switches the layout to one column for mobile.
 
 This is an early build. Things not built yet:
 
-- **Scene imagery**: the landing page promises a scene to explore, but the game page currently shows only the map.
-- **Multiple locations and rounds**: there's one hardcoded practice location, and no randomisation or multi-round games.
+- **Scene imagery**: rounds currently name the place to find. The landing page's "explore the scene" copy describes the planned version with photos or street-level imagery instead of names.
+- **Shared leaderboard**: the high score is per browser. A leaderboard across players would need a backend.
 - **Data layer**: `@tanstack/react-query` and `zod` are installed but not used yet (presumably for fetching and validating location data later).
-- **Tests**: there's no test setup yet.
+- **Tests**: there's no test setup yet (distance, scoring and round picking would be good first candidates).
 - **Cleanup**: the SVGs in `public/` are create-next-app defaults and aren't used.
 
 ## For AI coding assistants

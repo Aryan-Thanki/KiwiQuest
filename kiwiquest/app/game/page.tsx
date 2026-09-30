@@ -6,7 +6,7 @@ export default function GamePage() {
     <main className="game-page">
       <header className="game-header">
         <Link className="wordmark" href="/">Kiwi<span>Quest</span></Link>
-        <p>Practice round 01</p>
+        <p>Three-round game</p>
       </header>
       <GuessMap />
     </main>
