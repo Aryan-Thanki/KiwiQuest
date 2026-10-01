@@ -10,7 +10,8 @@ Each game is three rounds. Every round names a famous New Zealand spot, the play
 - **Three-round game** (`/game`) with an interactive map of New Zealand:
   - A start screen shows your current high score.
   - Each round picks a random location from a pool of 28 popular NZ spots (no repeats within a game).
-  - Click the map to drop your guess pin (click again to move it), then submit to reveal the real location, your distance from it, and your round score.
+  - Zoom from the whole country down to street level (scroll, pinch, double-click or the `+`/`−` buttons) for a more precise guess.
+  - Click the map to drop your guess pin (click again to move it), then submit to reveal the real location, your distance from it, and your round score. The map zooms out to show both pins.
   - A status bar shows the round number, your running total and your high score.
   - After round 3, a summary lists each round and your total out of 15,000.
   - **High score:** your best total is saved in the browser and replaced only when a finished game beats it.
@@ -98,8 +99,8 @@ All game state is local React state inside `GuessMap`:
 - `finalScore` / `showSummary`: the game total and the previous high score, and whether the summary screen is showing.
 
 1. **Start game** shuffles the location pool (Fisher–Yates) and takes the first three, so each game gets three different places.
-2. Each round shows the place name. The map opens centred on New Zealand (zoom 4.7, limited to zoom 4–8, with no repeated world copies) and resets to that view every round.
-3. Clicking the map sets `guess` and shows a red pin. The **Submit guess** button is disabled until a pin is placed. Submitting shows the green answer pin and a results bar with the answer, the distance and the round score.
+2. Each round shows the place name. The map opens centred on New Zealand (zoom 4.7) and resets to that view every round. Players can zoom between level 4 (the whole country) and 16 (street level).
+3. Clicking the map sets `guess` and shows a red pin. The **Submit guess** button is disabled until a pin is placed. Submitting shows the green answer pin, fits the map to show both pins, and shows a results bar with the answer, the distance and the round score.
 4. **Next round** moves on. After round 3, **See final score** shows the summary, and **Play again** starts a fresh game with three new random locations.
 
 ### Locations
@@ -126,6 +127,12 @@ The high score is checked the moment the third guess is submitted, so it is save
 ### Map
 
 The map style is defined inline in `guess-map.tsx` as a minimal MapLibre style with a single OpenStreetMap raster tile layer, so no API key or map provider account is needed. The MapLibre CSS is imported directly in the component.
+
+Zooming uses react-map-gl's built-in scroll, pinch and double-click handlers, plus a `NavigationControl` (`+`/`−` buttons, compass hidden) in the top-right corner. Zoom is limited to levels 4–16. Panning is limited by `maxBounds` to the area around New Zealand (153.8°E to 191.2°E, so it crosses the 180° line), which keeps Australia out of view. On wide screens this zooms the opening view in slightly.
+
+`maplibre-gl` is pinned to v5, because react-map-gl 8 reads `map.transform`, which maplibre-gl 6 no longer exposes, so camera events like the zoom buttons throw. On submit, a `MapRef` calls `fitBounds` around the guess and the answer (capped at zoom 10), so the answer is visible even if the player was zoomed in elsewhere.
+
+The map fills the width of the page with a 24px gap on each side (16px under 800px). Its height is `clamp(360px, 68vh, 820px)`, so it uses most of the screen while the submit button stays visible.
 
 ### Styling
 
