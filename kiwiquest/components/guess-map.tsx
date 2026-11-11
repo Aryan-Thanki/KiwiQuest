@@ -2,7 +2,7 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useRef, useState, useSyncExternalStore } from "react";
-import Map, { Marker, NavigationControl, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
+import Map, { Layer, Marker, Source,NavigationControl, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import { locations, type Location } from "../data/locations";
 import { getHighScore, getServerHighScore, saveHighScore, subscribeToHighScore } from "../lib/high-score";
 
@@ -159,6 +159,11 @@ export function GuessMap() {
           {/* Keyed by round so the map resets to the full-country view each round. */}
           <Map key={roundIndex} ref={mapRef} initialViewState={{ bounds: nzBounds, fitBoundsOptions: { padding: 24 } }} maxBounds={panBounds} minZoom={4} maxZoom={16} mapStyle={mapStyle} onClick={placeGuess} cursor={submitted ? "default" : "crosshair"}>
             <NavigationControl position="top-right" showCompass={false} />
+            {submitted && guess && (
+              <Source id="guess-line" type="geojson" data={{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [[guess.longitude, guess.latitude], [location.longitude, location.latitude]] } }}>
+                <Layer id="guess-line" type="line" paint={{ "line-color": "#1f2937", "line-width": 3, "line-dasharray": [1.5, 2] }} layout={{ "line-cap": "butt" }} />
+              </Source>
+            )}
             {guess && <Marker longitude={guess.longitude} latitude={guess.latitude} anchor="bottom"><span className="guess-pin" /></Marker>}
             {submitted && <Marker longitude={location.longitude} latitude={location.latitude} anchor="bottom"><span className="answer-pin" /></Marker>}
           </Map>
